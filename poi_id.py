@@ -10,13 +10,14 @@ Created on Fri Jan 12 15:33:05 2018
 
 import sys
 import pickle
-
+sys.path.append("../tools/")
 
 import numpy as np
 import pprint  
 
 # Project
-from feature_format import featureFormat, targetFeatureSplit
+from feature_format import featureFormat
+from feature_format import targetFeatureSplit
 from tester import dump_classifier_and_data  # changed tester's cross_validation to model_selection
 
 # Visualization
@@ -28,16 +29,21 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split # Split data
  
 # Evaluation metrics
-from sklearn.metrics import recall_score, precision_score, classification_report
+from sklearn.metrics import recall_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import classification_report
 # Classifiers
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 # Feature selection
-from sklearn.feature_selection import SelectKBest, chi2, SelectFromModel
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+from sklearn.feature_selection import SelectFromModel
+
 # Tune parameters
 ### tunning svc
-from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV
 # K-fold validation
 from sklearn.model_selection import cross_val_score 
 # Pipeline
@@ -45,13 +51,16 @@ from sklearn.pipeline import Pipeline
 # dimensionality reduction
 from sklearn.decomposition import PCA
 
+# StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedKFold
 
 
 
 #########################################################################
 #########################################################################
 ########                                                      ###########
-########                   Select features 1                  ###########
+########                   Select features from data          ###########
 ########                                                      ###########
 #########################################################################
 #########################################################################
@@ -69,7 +78,6 @@ features_list = ['poi',
                  'from_poi_to_this_person', 'from_this_person_to_poi',
                  'to_messages', 'from_messages'
                  ]  # may add shared_receipts in future
-
 
 
 ### Are there features with many missing values
@@ -98,7 +106,6 @@ pprint.pprint(countFeatures)
 #  'total_payments': 21,
 #  'total_stock_value': 20}
 # =============================================================================
-
 
 
 
@@ -186,7 +193,6 @@ my_dataset = data_dict
 
 
 
-
 #########################################################################
 #########################################################################
 ########                                                      ###########
@@ -255,7 +261,6 @@ train_test_split(features, labels, test_size=0.3, random_state=42)
 
 
 
-
 #########################################################################
 #########################################################################
 ########                                                      ###########
@@ -263,6 +268,8 @@ train_test_split(features, labels, test_size=0.3, random_state=42)
 ########                                                      ###########
 #########################################################################
 #########################################################################
+
+# naive bayes, svc, decision tree
 
 print "First evaluation: get a baseline"
 print
@@ -285,35 +292,10 @@ get_baseline(clfNb)
 print "SVC classification's baseline:"
 get_baseline(clfSvc)
 
+print "Decision tree classification's baseline:"
+get_baseline(clfDt)
 
 print "-----------------------------------------------------"
-
-# =============================================================================
-# 
-# First evaluation: get a baseline
-# 
-# Naive bayes classification's baseline:
-# Accuracy: 0.883720930233
-# Classification report:
-#              precision    recall  f1-score   support
-# 
-#         0.0       0.92      0.95      0.94        38
-#         1.0       0.50      0.40      0.44         5
-# 
-# avg / total       0.87      0.88      0.88        43
-# 
-# SVC classification's baseline:
-# Accuracy: 0.883720930233
-# Classification report:
-#              precision    recall  f1-score   support
-# 
-#         0.0       0.88      1.00      0.94        38
-#         1.0       0.00      0.00      0.00         5
-# 
-# avg / total       0.78      0.88      0.83        43
-# 
-# 
-# =============================================================================
 
 
 
@@ -321,7 +303,7 @@ print "-----------------------------------------------------"
 #########################################################################
 #########################################################################
 ########                                                      ###########
-########      Selecting features 2                             ###########
+########      Select features & tune parameters               ###########
 ########                                                      ###########
 #########################################################################
 #########################################################################
@@ -344,13 +326,20 @@ def pipe(estimators):
 scaler = MinMaxScaler()
 kbest = SelectKBest(chi2)
 pca = PCA()
-### naive bayes
 
-### feature scaling
+
+
+#########################################################################
+########                 naive bayes                          ###########
+#########################################################################
+
+### Select features: naive bayes
+
+# feature scaling
 estimatorsNb_scaled = [('scaler', scaler), ('clf', clfNb)]
-### feature scaling + selection: kbest
+# feature scaling + selection: kbest
 estimatorsNb_scaled_kbest = [('scaler', scaler), ('feature_selection', kbest),('clf', clfNb)]
-### # dimension reduction: pca
+# dimension reduction: pca
 estimatorsNb_scaled_pca = [('scaler', scaler), ('reduce_dim', pca),('clf', clfNb)]
 
 print "Naive bayes:"
@@ -371,24 +360,59 @@ pipe(estimatorsNb_scaled_kbest)
 print "After feature scaling and PCA:"
 pipe(estimatorsNb_scaled_pca)
 
-
 print "-----------------------------------------------------"
 
+
 # =============================================================================
-# Naive bayes: No difference from the baseline
+# In dimension reduction, PCA performs much better than Kbest.
+# Use PCA 
 # =============================================================================
 
 
-### svc
 
-### feature scaling
+### Tune parameters: naive bayes
+
+# chose feature scaling + dimension reduction: pca
+pipe_Nb = Pipeline(estimatorsNb_scaled_pca)
+pipe_Nb.fit(features_train, labels_train)
+
+# tuning params
+param_grid_Nb = dict(reduce_dim__n_components=[None, 2, 5, 8])
+
+# use StratifiedKFold to make the classifier more robust!!
+### this is a small dataset, with the ratio of poi and non-poi highly unbalanced
+grid_search_Nb = GridSearchCV(pipe_Nb, param_grid=param_grid_Nb, cv = StratifiedKFold(10))
+grid_search_Nb.fit(features_train, labels_train)
+
+best_Nb = grid_search_Nb.best_estimator_
+
+best_Nb.fit(features_train, labels_train)    
+best_Nb_predict = best_Nb.predict(features_test)
+best_Nb_score = best_Nb.score(features_test, labels_test)
+best_Nb_report = classification_report(labels_test, best_Nb_predict)
+
+print "Best naive bayes classification's accuracy:", best_Nb_score
+print "Best naive bayes classification's classification report:", best_Nb_report
+
+
+print "-----------------------------------------------------"
+print "-----------------------------------------------------"
+
+
+#########################################################################
+########                 SVC                                  ###########
+#########################################################################
+
+
+### Select features: svc
+
+# feature scaling
 estimatorsSvc_scaled = [('scaler', scaler), ('clf', clfSvc)]
 
-### feature scaling + kbest
+# feature scaling + kbest
 estimatorsSvc_scaled_kbest = [('scaler', scaler), ('feature_selection', kbest),('clf', clfSvc)]
 
-
-### # dimension reduction: pca
+# dimension reduction: pca
 estimatorsSvc_scaled_pca = [('scaler', scaler), ('reduce_dim', pca),('clf', clfSvc)]
 
 print "SVC:"
@@ -412,54 +436,84 @@ pipe(estimatorsSvc_scaled_pca)
 
 print "-----------------------------------------------------"
 
-# =============================================================================
-# SVC: No difference from the baseline;
-# and the performance of identifying POI is so bad, the precision and recall score are always 0.
-# =============================================================================
+#  =============================================================================
+#  SVC: No difference from the baseline;
+#  and its performance on identifying POI is so bad, that the precision and recall score are always 0.
+#  wont tuning params for this classifier for this classifier.
+#  =============================================================================
+
+
+
+
 
 #########################################################################
-#########################################################################
-########                                                      ###########
-########      Tunning params                                  ###########
-########                                                      ###########
-#########################################################################
+########                 Decision Tree                        ###########
 #########################################################################
 
 
-param_grid_Nb = dict(reduce_dim__n_components=[None, 2, 5, 8])
+### Select features: decision tree
 
+print "Decision tree:"
 
-pipe_Nb = Pipeline(estimatorsNb_scaled_pca)
-pipe_Nb.fit(features_train, labels_train)
+# baseline
+print "Baseline:"
+get_baseline(clfDt)
 
-grid_search_Nb = GridSearchCV(pipe_Nb, param_grid=param_grid_Nb)
-grid_search_Nb.fit(features_train, labels_train)
+# feature importances
+estimatorsDt = [('clf', clfDt)]
+pipeDt = Pipeline(estimatorsDt)
+pipeDt.fit(features_train, labels_train)
+featureImportances = pipeDt.named_steps['clf'].feature_importances_
 
-print grid_search_Nb.best_estimator_
+print "Feature Importances:"
+indices = np.argsort(featureImportances)[::-1]
+for i in indices:
+    print features_list[i+1],"'s importance:",featureImportances[i]
 
-best_Nb = Pipeline(memory=None,
-     steps=[('scaler', MinMaxScaler(copy=True, feature_range=(0, 1))), ('reduce_dim', PCA(copy=True, iterated_power='auto', n_components=None, random_state=None,
-  svd_solver='auto', tol=0.0, whiten=False)), ('clf', GaussianNB(priors=None))])
-
-best_Nb.fit(features_train, labels_train)    
-best_Nb_predict = best_Nb.predict(features_test)
-best_Nb_score = best_Nb.score(features_test, labels_test)
-best_Nb_report = classification_report(labels_test, best_Nb_predict)
-
-print best_Nb_score
-print best_Nb_report
 
 # =============================================================================
-# Pipeline(memory=None,
-#      steps=[('scaler', MinMaxScaler(copy=True, feature_range=(0, 1))), ('reduce_dim', PCA(copy=True, iterated_power='auto', n_components=None, random_state=None,
-#   svd_solver='auto', tol=0.0, whiten=False)), ('clf', GaussianNB(priors=None))])
-# 0.906976744186
-#              precision    recall  f1-score   support
 # 
-#         0.0       0.95      0.95      0.95        38
-#         1.0       0.60      0.60      0.60         5
+# from_poi_to_this_person imp: 0.257925098774
+# ratio_to_poi imp: 0.226348364279
+# ratio_from_poi imp: 0.120795797188
+# total_payments imp: 0.106100795756
+# restricted_stock imp: 0.0925434718538
+# to_messages imp: 0.0589448865311
+# exercised_stock_options imp: 0.0589448865311
+# bonus imp: 0.0577659888005
+# salary imp: 0.0206307102859
+# from_messages imp: 0.0
+# from_this_person_to_poi imp: 0.0
+# total_stock_value imp: 0.0
 # 
-# avg / total       0.91      0.91      0.91        43
+# 
+# Choosethe best three from email and fiancial features:
+#     email: from_poi_to_this_person, ratio_to_poi, ratio_from_poi,
+#     financial: total_payments, restricted_stock, exercised_stock_options
+# 
+# 
+# =============================================================================
+
+
+# create new featuers_list
+    
+features_list_tree = ['from_poi_to_this_person', 'ratio_to_poi', 'ratio_from_poi', 
+                 'total_payments', 'restricted_stock', 'exercised_stock_options']
+
+# Create new data and split labels, features
+data_tree = featureFormat(my_dataset, features_list, sort_keys = True)
+### Split labels and features
+labels_tree, features_tree = targetFeatureSplit(data_tree)
+
+### Split data for training and testing
+features_train, features_test, labels_train, labels_test = \
+train_test_split(features_tree, labels_tree, test_size=0.3, random_state=42)
+
+print "Decision tree after feature importances"
+get_baseline(clfDt)
+
+# =============================================================================
+# The perforamnce of decision tree is worse than naive bayes.
 # =============================================================================
 
 
