@@ -497,7 +497,7 @@ for i in indices:
 
 # create new featuers_list
     
-features_list_tree = ['from_poi_to_this_person', 'ratio_to_poi', 'ratio_from_poi', 
+features_list_tree = ['poi', 'from_poi_to_this_person', 'ratio_to_poi', 'ratio_from_poi', 
                  'total_payments', 'restricted_stock', 'exercised_stock_options']
 
 # Create new data and split labels, features
@@ -511,6 +511,31 @@ train_test_split(features_tree, labels_tree, test_size=0.3, random_state=42)
 
 print "Decision tree after feature importances"
 get_baseline(clfDt)
+
+
+
+# Tune params: decision tree 
+estimatorsDt = [('clf', clfDt)]
+pipe_Dt = Pipeline(estimatorsDt)
+pipe_Dt.fit(features_train, labels_train)
+
+param_grid_Dt = dict(clf__min_samples_split=[2, 3, 4, 5])
+
+# use StratifiedKFold to make the classifier more robust!!
+### this is a small dataset, with the ratio of poi and non-poi highly unbalanced
+grid_search_Dt = GridSearchCV(pipe_Dt, param_grid=param_grid_Dt, cv = StratifiedKFold(10))
+print pipe_Dt.get_params().keys()
+grid_search_Dt.fit(features_train, labels_train)
+
+best_Dt = grid_search_Dt.best_estimator_
+
+best_Dt.fit(features_train, labels_train)    
+best_Dt_predict = best_Dt.predict(features_test)
+best_Dt_score = best_Dt.score(features_test, labels_test)
+best_Dt_report = classification_report(labels_test, best_Dt_predict)
+
+print best_Dt_score
+print best_Dt_report
 
 # =============================================================================
 # The perforamnce of decision tree is worse than naive bayes.
