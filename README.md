@@ -1,24 +1,24 @@
 # Udacity's Data Analyst Nanodegree:  P5 Enron email
 
-The repository contains my submission files for Data Analyst Nanodegree(DAND)'s P5  project. The objective of this project is to train a machine learning classifier to detect person of interest (POI) in Enron case via given financial and email features. It is part of the **machine learning** section of the DAND.
+The repository contains my submission files for Data Analyst Nanodegree(DAND)'s P5  project. The objective of this project is to train a machine learning classifier to detect person of interest (POI) in Enron case via given financial and email features. It is part of the **machine learning** section of the DAND program.
 
-This README contains files listed and outline of the analysis process.
+This README contains files listed and outline of poi_id.py.
 
 ## The files include:
 - poi_id.py
-	My code for the project, including creating classifiers, feature selection, tuning parameters and validation.  
+	- My code for the project, including creating classifiers, feature selection, tuning parameters and validation.  
 - p5-enron-submission-report.pdf
-	Report with my answers to the project's questions.
+	- Report with my answers to the project's questions.
 - tester.py
-	Udacity's provided tester to check the outcome of poi_id.py
+	- Udacity's provided tester to check the outcome of poi_id.py
 - feature_format.py
-	Udacity's provided file to handle formats and transfer dataset from dictionary to numpy for scikit learn's to process.
+	- Udacity's provided file to handle formats and transfer dataset from dictionary to numpy for scikit learn's to process.
 - enron61702insiderpay.pdf
-	Udacity's provided file that contains Enron employees' financial data, such as salary, bonus and stock value.
+	- Udacity's provided file that contains Enron employees' financial data, such as salary, bonus and stock value.
 - final_project_dataset.pkl
-	Udacity's provided dataset that combines Enron employees' financial and email data, such as number of email sent or number of email received from POI.
+	- Udacity's provided dataset that combines Enron employees' financial and email data, such as number of email sent or number of email received from POI.
 - poi_names.txt
-	Udacity's provided namelist of POIs. 
+	- Udacity's provided namelist of POIs. 
 
 
 ## Outline of poi_id.py
