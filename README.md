@@ -1,4 +1,4 @@
-# Udacity's Data Analyst Nanodegree:  P5 Enron email
+# Udacity's Data Analyst Nanodegree:  P6 Enron email
 
 The repository contains my submission files for Data Analyst Nanodegree(DAND)'s P5  project. The objective of this project is to train a machine learning classifier to detect person of interest (POI) in Enron case via given financial and email features. It is part of the **machine learning** section of the DAND program.
 
